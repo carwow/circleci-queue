@@ -28,7 +28,6 @@ parameters:
     type: string
     default: "*"
     description: "Only queue on a specified workflow. Consider combining this with `consider-branch`:`false`."
-  # vcs-type --> pipeline.project.type
   confidence:
     type: string
     default: "1"
@@ -50,7 +49,12 @@ parameters:
     default: "circleci.com"
     description: "For server user to specifiy custom hostname for their server"
 
-
+  vcs-type:
+    type: string
+    default: github
+  my-pipeline:
+    type: integer
+    description: "Set as: <<pipeline.number>>"
 
 docker:
   - image: cimg/base:stable
@@ -68,3 +72,5 @@ steps:
       tag-pattern: <<parameters.tag-pattern>>
       job-regex: <<parameters.job-regex>>
       circleci-hostname: <<parameters.circleci-hostname>>
+      vcs-type: <<parameters.vcs-type>>
+      my-pipeline: <<parameters.my-pipeline>>

@@ -50,27 +50,18 @@ parameters:
     default: "circleci.com"
     description: "For server user to specifiy custom hostname for their server"
 
-  #
-  #  These a;l pass through from pipeline, but orb validator wont let us use them inline :(
-  #
-  my-pipeline:
-    type: string
-    default: "<<pipeline.number>>"
-  trigger-source:
-    type: string
-    default: "<<pipeline.trigger_source>>"
   vcs-type:
     type: string
-    default: "<<pipeline.project.type>>"
-  my-branch:
-    type: string
-    default: "<<pipeline.git.branch>>"
+    default: github
+  my-pipeline:
+    type: integer
+    description: "Set as: <<pipeline.number>>"
 
 steps:
   - run:
       name: Queue Until Front of Line
       command: <<include(../scripts/loop.bash)>>
-      environment:  
+      environment:
         ONLY_ON_BRANCH: <<parameters.limit-branch-name>>
         BLOCK_WORKFLOW: <<parameters.block-workflow>>
         MAX_TIME: '<<parameters.max-wait-time>>'
@@ -84,6 +75,4 @@ steps:
         JOB_REGEXP: <<parameters.job-regex>>
         CIRCLECI_BASE_URL: https://<<parameters.circleci-hostname>>
         MY_PIPELINE_NUMBER: <<parameters.my-pipeline>>
-        TRIGGER_SOURCE: <<parameters.trigger-source>>
         VCS_TYPE: <<parameters.vcs-type>>
-        MY_BRANCH: <<parameters.my-branch>>
