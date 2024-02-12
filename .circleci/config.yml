@@ -16,7 +16,6 @@ workflows:
 
       - orb-tools/publish:
           name: orb-tools/publish-dev
-          context: org-global
           orb_name: carwow/queue
           vcs_type: <<pipeline.project.type>>
 
@@ -28,7 +27,6 @@ workflows:
               only: carwow
 
       - orb-tools/publish:
-          context: org-global
           orb_name: carwow/queue
           vcs_type: <<pipeline.project.type>>
           pub_type: production
