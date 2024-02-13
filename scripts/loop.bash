@@ -199,6 +199,8 @@ echo "Max Queue Time: ${max_time_seconds} seconds."
 #
 confidence=0
 while true; do
+    echo # let's keep each loop messages separate by a blank line, easier to understand
+
     # get running jobs, filtered to branch or tag, with pipeline ID
     update_active_run_data
 
@@ -212,7 +214,6 @@ while true; do
             confidence=$((confidence+1))
             echo "API shows no conflicting jobs/workflows. However it is possible a previous workflow has pending jobs not yet visible in API. To avoid a race condition we will verify out place in queue."
             echo "Rerunning check ${confidence}/$CONFIDENCE_THRESHOLD"
-            echo
         else
             echo "Front of the line, WooHoo!, Build continuing"
             break
