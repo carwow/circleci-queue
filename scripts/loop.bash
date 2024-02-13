@@ -71,19 +71,19 @@ update_active_run_data(){
         echo "Orb parameter block-workflow is true. Any previous (matching) pipelines with running workflows will block this entire workflow."
         if [ "${ONLY_ON_WORKFLOW}" = "*" ]; then
             echo "No workflow name filter. This job will block until no previous workflows with *any* name are running, regardless of job name."
-            oldest_running_build_num=`jq 'sort_by(.workflows.pipeline_number)| .[-1].build_num' $AUGMENTED_JOBSTATUS_PATH`
-            front_of_queue_pipeline_number=`jq -r 'sort_by(.workflows.pipeline_number)| .[-1].workflows.pipeline_number // empty' $AUGMENTED_JOBSTATUS_PATH`
+            oldest_running_build_num=`jq 'sort_by(.workflows.pipeline_number)| .[0].build_num' $AUGMENTED_JOBSTATUS_PATH`
+            front_of_queue_pipeline_number=`jq -r 'sort_by(.workflows.pipeline_number)| .[0].workflows.pipeline_number // empty' $AUGMENTED_JOBSTATUS_PATH`
         else
             echo "Orb parameter limit-workflow-name is provided."
             echo "This job will block until no previous occurrences of workflow ${ONLY_ON_WORKFLOW} are running, regardless of job name"
-            oldest_running_build_num=`jq ". | map(select(.workflows.workflow_name| test(\"${ONLY_ON_WORKFLOW}\";\"sx\"))) | sort_by(.workflows.pipeline_number)| .[-1].build_num" $AUGMENTED_JOBSTATUS_PATH`
-            front_of_queue_pipeline_number=`jq -r ". | map(select(.workflows.workflow_name| test(\"${ONLY_ON_WORKFLOW}\";\"sx\"))) | sort_by(.workflows.pipeline_number)| .[-1].workflows.pipeline_number // empty" $AUGMENTED_JOBSTATUS_PATH`
+            oldest_running_build_num=`jq ". | map(select(.workflows.workflow_name| test(\"${ONLY_ON_WORKFLOW}\";\"sx\"))) | sort_by(.workflows.pipeline_number)| .[0].build_num" $AUGMENTED_JOBSTATUS_PATH`
+            front_of_queue_pipeline_number=`jq -r ". | map(select(.workflows.workflow_name| test(\"${ONLY_ON_WORKFLOW}\";\"sx\"))) | sort_by(.workflows.pipeline_number)| .[0].workflows.pipeline_number // empty" $AUGMENTED_JOBSTATUS_PATH`
         fi
     else
         echo "Orb parameter block-workflow is false. Use Job level queueing."
         echo "Only blocking execution if running previous jobs matching this job: ${JOB_NAME}"
-        oldest_running_build_num=`jq ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)|  .[-1].build_num" $AUGMENTED_JOBSTATUS_PATH`
-        front_of_queue_pipeline_number=`jq -r ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)|  .[-1].workflows.pipeline_number // empty" $AUGMENTED_JOBSTATUS_PATH`
+        oldest_running_build_num=`jq ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)| .[0].build_num" $AUGMENTED_JOBSTATUS_PATH`
+        front_of_queue_pipeline_number=`jq -r ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)| .[0].workflows.pipeline_number // empty" $AUGMENTED_JOBSTATUS_PATH`
     fi
     if [ -z $front_of_queue_pipeline_number ];then
         echo "API Call for existing jobs returned no matches. This means job is alone."
