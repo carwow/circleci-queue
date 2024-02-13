@@ -9,8 +9,8 @@ parameters:
     default: false
     description: "If true, this job will block until no other workflows with ANY JOBS with an earlier timestamp are running. Typically used as first job."
   max-wait-time:
-    type: string
-    default: "10"
+    type: integer
+    default: 10
     description: "How many minutes to wait before giving up."
   dont-quit:
     type: boolean
@@ -28,10 +28,9 @@ parameters:
     type: string
     default: "*"
     description: "Only queue on a specified workflow. Consider combining this with `consider-branch`:`false`."
-  # vcs-type --> pipeline.project.type
   confidence:
-    type: string
-    default: "1"
+    type: integer
+    default: 1
     description: "Due to scarce API, we need to requery the recent jobs list to ensure we're not just in a pending state for previous jobs.  This number indicates the threhold for API returning no previous pending jobs. Default is a single confirmation."
   circleci-api-key:
     type: env_var_name
@@ -64,7 +63,7 @@ steps:
       environment:
         ONLY_ON_BRANCH: <<parameters.limit-branch-name>>
         BLOCK_WORKFLOW: <<parameters.block-workflow>>
-        MAX_TIME: '<<parameters.max-wait-time>>'
+        MAX_TIME: <<parameters.max-wait-time>>
         DONT_QUIT: <<parameters.dont-quit>>
         FORCE_CANCEL_PREVIOUS: <<parameters.force-cancel-previous>>
         FILTER_BRANCH: << parameters.this-branch-only >>

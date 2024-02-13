@@ -58,17 +58,16 @@ do_we_run(){
 }
 
 
-update_active_run_data(){     
+update_active_run_data(){
     fetch_filtered_active_builds
     augment_jobs_with_pipeline_data
-    
+
     JOB_NAME="${CIRCLE_JOB}"
     if [ "${JOB_REGEXP}" ] ;then
         JOB_NAME="${JOB_REGEXP}"
     fi
 
-    # falsey parameters are empty strings, so always compare against 'true' 
-    if [ "${BLOCK_WORKFLOW}" = "true" ] ;then
+    if [ "${BLOCK_WORKFLOW}" = "1" ] ;then
         echo "Orb parameter block-workflow is true. Any previous (matching) pipelines with running workflows will block this entire workflow."
         if [ "${ONLY_ON_WORKFLOW}" = "*" ]; then
             echo "No workflow name filter. This job will block until no previous workflows with *any* name are running, regardless of job name."
@@ -103,7 +102,7 @@ update_active_run_data(){
 fetch_filtered_active_builds(){
     JOB_API_SUFFIX="?filter=running&shallow=true"
     jobs_api_url_template="${CIRCLECI_BASE_URL}/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}${JOB_API_SUFFIX}"
-    if [ "${FILTER_BRANCH}" != "true" ];then
+    if [ "${FILTER_BRANCH}" != "1" ];then
         echo "Orb parameter 'this-branch-only' is false, will block previous builds on any branch." 
     else
         #branch filter
@@ -117,7 +116,6 @@ fetch_filtered_active_builds(){
         cat $TESTING_MOCK_RESPONSE > $SHALLOW_JOBSTATUS_PATH
     else
         fetch "$jobs_api_url_template" "$SHALLOW_JOBSTATUS_PATH"
-        echo "API access successful"
     fi
 
     if [ -n "${CIRCLE_TAG}" ] && [ "$TAG_PATTERN" != "" ]; then
@@ -128,7 +126,7 @@ fetch_filtered_active_builds(){
 }
 
 augment_jobs_with_pipeline_data(){
-    echo "Getting queue ordering"
+    # echo "Getting queue ordering"
     cp $SHALLOW_JOBSTATUS_PATH $AUGMENTED_JOBSTATUS_PATH
     for workflow in `jq -r ".[] | .workflows.workflow_id //empty" $AUGMENTED_JOBSTATUS_PATH | uniq`; do
         #get workflow to get pipeline...
@@ -167,16 +165,14 @@ urlencode(){
 }
 
 fetch(){
-    echo "DEBUG: Making API Call to ${1}"    
     url=$1
     target=$2
     http_response=$(curl -s -X GET -H "Circle-Token:${CCI_TOKEN}" -H "Content-Type: application/json" -o "${target}" -w "%{http_code}" "${url}")
     if [ $http_response != "200" ]; then
         echo "ERROR: Server returned error code: $http_response"
+        echo "ERROR: From API Call to: $url"
         cat ${target}
         exit 1
-    else
-        echo "DEBUG: API Success"
     fi
 }
 
@@ -216,6 +212,7 @@ while true; do
             confidence=$((confidence+1))
             echo "API shows no conflicting jobs/workflows. However it is possible a previous workflow has pending jobs not yet visible in API. To avoid a race condition we will verify out place in queue."
             echo "Rerunning check ${confidence}/$CONFIDENCE_THRESHOLD"
+            echo
         else
             echo "Front of the line, WooHoo!, Build continuing"
             break
@@ -229,9 +226,9 @@ while true; do
 
     if [ $wait_time -ge $max_time_seconds ]; then
         echo "Max wait time exceeded, fail or force cancel..."
-        if [ "${DONT_QUIT}" == "true" ];then
+        if [ "${DONT_QUIT}" = "1" ];then
             echo "Orb parameter dont-quit is set to true, letting this job proceed!"
-            if [ "${FORCE_CANCEL_PREVIOUS}" == "true" ]; then
+            if [ "${FORCE_CANCEL_PREVIOUS}" = "1" ]; then
                 "FEATURE NOT IMPLEMENTED"
                 exit 1
             fi

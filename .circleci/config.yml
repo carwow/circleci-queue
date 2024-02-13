@@ -9,8 +9,6 @@ workflows:
     jobs:
       - orb-tools/pack:
           filters:
-            branches:
-              only: carwow
             tags:
               only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
 
@@ -21,10 +19,6 @@ workflows:
 
           requires:
             - orb-tools/pack
-
-          filters:
-            branches:
-              only: carwow
 
       - orb-tools/publish:
           orb_name: carwow/queue
