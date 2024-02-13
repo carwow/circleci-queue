@@ -85,8 +85,8 @@ update_active_run_data(){
         oldest_running_build_num=`jq ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)| .[0].build_num" $AUGMENTED_JOBSTATUS_PATH`
         front_of_queue_pipeline_number=`jq -r ". | map(select(.workflows.job_name | test(\"${JOB_NAME}\";\"sx\"))) | sort_by(.pipeline_number)| .[0].workflows.pipeline_number // empty" $AUGMENTED_JOBSTATUS_PATH`
     fi
-    if [ -z $front_of_queue_pipeline_number ];then
-        echo "API Call for existing jobs returned no matches. This means job is alone."
+    if [ -z "$front_of_queue_pipeline_number" ];then
+        echo "API Call for existing jobs returned no matches. This means we have more jobs running, than the API limit (100)."
         if [[ $DEBUG == "true" ]];then
             echo "All running jobs:"
             cat $SHALLOW_JOBSTATUS_PATH || exit 0
@@ -100,7 +100,7 @@ update_active_run_data(){
 }
 
 fetch_filtered_active_builds(){
-    JOB_API_SUFFIX="?filter=running&shallow=true"
+    JOB_API_SUFFIX="?filter=running&shallow=true&limit=100"
     jobs_api_url_template="${CIRCLECI_BASE_URL}/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}${JOB_API_SUFFIX}"
     if [ "${FILTER_BRANCH}" != "1" ];then
         echo "Orb parameter 'this-branch-only' is false, will block previous builds on any branch." 
@@ -207,9 +207,9 @@ while true; do
     echo "This Job's Pipeline #: $MY_PIPELINE_NUMBER"
     echo "Front of Queue (fifo) Pipeline #: $front_of_queue_pipeline_number"
 
-    if [[ -z "$front_of_queue_pipeline_number" ]] || [[ ! -z "$MY_PIPELINE_NUMBER" ]] && [[ "$front_of_queue_pipeline_number" == "$MY_PIPELINE_NUMBER" ]] ; then
-        # recent-jobs API does not include pending, so it is possible we queried in between a workflow transition, and we;re NOT really front of line.
-        if [ $confidence -lt $CONFIDENCE_THRESHOLD ];then
+    if [ "$front_of_queue_pipeline_number" = "$MY_PIPELINE_NUMBER" ]; then
+        # recent-jobs API does not include pending, so it is possible we queried in between a workflow transition, and we're NOT really front of line.
+        if [ $confidence -lt $CONFIDENCE_THRESHOLD ]; then
             # To grow confidence, we check again with a delay.
             confidence=$((confidence+1))
             echo "API shows no conflicting jobs/workflows. However it is possible a previous workflow has pending jobs not yet visible in API. To avoid a race condition we will verify out place in queue."
@@ -221,7 +221,11 @@ while true; do
     else
         # If we fail, reset confidence
         confidence=0
-        echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for build(${oldest_running_build_num}) pipeline (${front_of_queue_pipeline_number}) to complete."
+        if [ -z "$front_of_queue_pipeline_number" ]; then
+            echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for total number of jobs to be under 100."
+        else
+            echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for build(${oldest_running_build_num}) pipeline (${front_of_queue_pipeline_number}) to complete."
+        fi
         echo "Total Queue time: ${wait_time} seconds."
     fi
 
