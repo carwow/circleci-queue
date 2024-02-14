@@ -182,6 +182,9 @@ cancel_build_num(){
     echo "Cancelling build ${BUILD_NUM}"
     cancel_api_url_template="${CIRCLECI_BASE_URL}/api/v1.1/project/${VCS_TYPE}/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${BUILD_NUM}/cancel?circle-token=${CCI_TOKEN}"
     curl -s -X POST $cancel_api_url_template > /dev/null
+
+    sleep 30 # wait for API to cancel this job, rather than showing as failure
+    exit 1 # but just in case, fail job
 }
 
 
@@ -190,7 +193,7 @@ cancel_build_num(){
 
 #
 # MAIN LOGIC STARTS HERE
-# 
+#
 load_variables
 do_we_run #exit early if we can
 echo "Max Queue Time: ${max_time_seconds} seconds."
@@ -207,6 +210,18 @@ while true; do
     echo "This Job's Pipeline #: $MY_PIPELINE_NUMBER"
     echo "Front of Queue (fifo) Pipeline #: $front_of_queue_pipeline_number"
 
+    if [ -z "$front_of_queue_pipeline_number" ]; then
+        # NOTE: This can happen if there are more jobs running than the ones we fetched from the API due to pagination limits.
+        echo "We failed to find the front of the queue, this means another pipeline probably already got front of the queue, so cancel this one..."
+        cancel_build_num $CIRCLE_BUILD_NUM
+    fi
+
+    if [ $front_of_queue_pipeline_number -gt $MY_PIPELINE_NUMBER ]; then
+        # NOTE: This can happen if there are more jobs running than the ones we fetched from the API due to pagination limits.
+        echo "We found a newer pipeline as the front of the queue, this means another pipeline probably already got front of the queue, so cancel this one..."
+        cancel_build_num $CIRCLE_BUILD_NUM
+    fi
+
     if [ "$front_of_queue_pipeline_number" = "$MY_PIPELINE_NUMBER" ]; then
         # recent-jobs API does not include pending, so it is possible we queried in between a workflow transition, and we're NOT really front of line.
         if [ $confidence -lt $CONFIDENCE_THRESHOLD ]; then
@@ -221,28 +236,13 @@ while true; do
     else
         # If we fail, reset confidence
         confidence=0
-        if [ -z "$front_of_queue_pipeline_number" ]; then
-            echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for total number of jobs to be under 100."
-        else
-            echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for build(${oldest_running_build_num}) pipeline (${front_of_queue_pipeline_number}) to complete."
-        fi
+        echo "This build (${CIRCLE_BUILD_NUM}), pipeline (${MY_PIPELINE_NUMBER}) is queued, waiting for build(${oldest_running_build_num}) pipeline (${front_of_queue_pipeline_number}) to complete."
         echo "Total Queue time: ${wait_time} seconds."
     fi
 
     if [ $wait_time -ge $max_time_seconds ]; then
-        echo "Max wait time exceeded, fail or force cancel..."
-        if [ "${DONT_QUIT}" = "1" ];then
-            echo "Orb parameter dont-quit is set to true, letting this job proceed!"
-            if [ "${FORCE_CANCEL_PREVIOUS}" = "1" ]; then
-                "FEATURE NOT IMPLEMENTED"
-                exit 1
-            fi
-            exit 0
-        else
-            cancel_build_num $CIRCLE_BUILD_NUM
-            sleep 5 # wait for API to cancel this job, rather than showing as failure
-            exit 1 # but just in case, fail job
-        fi
+        echo "Max wait time exceeded, cancel..."
+        cancel_build_num $CIRCLE_BUILD_NUM
     fi
 
     sleep $loop_time

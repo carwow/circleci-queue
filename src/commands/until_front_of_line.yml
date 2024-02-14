@@ -10,16 +10,8 @@ parameters:
     description: "If true, this job will block until no other workflows with ANY JOBS with an earlier timestamp are running. Typically used as first job."
   max-wait-time:
     type: integer
-    default: 10
+    default: 5
     description: "How many minutes to wait before giving up."
-  dont-quit:
-    type: boolean
-    default: false
-    description: "Quitting is for losers. Force job through once time expires instead of failing."
-  force-cancel-previous:
-    type: boolean
-    default: false
-    description: "No Mercy. Issue cancel commands for any previous competitors (only applies when dont-quit also true)"
   limit-branch-name:
     type: string
     default: "*"
@@ -64,8 +56,6 @@ steps:
         ONLY_ON_BRANCH: <<parameters.limit-branch-name>>
         BLOCK_WORKFLOW: <<parameters.block-workflow>>
         MAX_TIME: <<parameters.max-wait-time>>
-        DONT_QUIT: <<parameters.dont-quit>>
-        FORCE_CANCEL_PREVIOUS: <<parameters.force-cancel-previous>>
         FILTER_BRANCH: << parameters.this-branch-only >>
         ONLY_ON_WORKFLOW: <<parameters.limit-workflow-name>>
         CONFIDENCE_THRESHOLD: <<parameters.confidence>>
