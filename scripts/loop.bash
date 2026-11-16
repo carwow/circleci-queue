@@ -177,6 +177,12 @@ fetch(){
 }
 
 
+skip_superseded_job(){
+    echo "Orb parameter on-superseded is skip, ending this job successfully without running the remaining steps."
+    circleci-agent step halt
+    exit 0
+}
+
 cancel_build_num(){
     BUILD_NUM=$1
     echo "Cancelling build ${BUILD_NUM}"
@@ -219,6 +225,9 @@ while true; do
     if [ $front_of_queue_pipeline_number -gt $MY_PIPELINE_NUMBER ]; then
         # NOTE: This can happen if there are more jobs running than the ones we fetched from the API due to pagination limits.
         echo "We found a newer pipeline as the front of the queue, this means another pipeline probably already got front of the queue, so cancel this one..."
+        if [ "${ON_SUPERSEDED}" = "skip" ]; then
+            skip_superseded_job
+        fi
         cancel_build_num $CIRCLE_BUILD_NUM
     fi
 

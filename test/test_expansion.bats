@@ -332,6 +332,66 @@ function setup {
 
 
 
+# A newer pipeline running the same job means this one has been superseded.
+# circleci-agent, curl and sleep are stubbed so the test is fast and offline.
+function stub_superseded_environment {
+  STUB_DIR=${BATS_TMPDIR}/stubs-${BATS_TEST_NUMBER}
+  mkdir -p $STUB_DIR
+  printf '#!/bin/bash\necho "circleci-agent $*" >> %s/calls\n' "$STUB_DIR" > $STUB_DIR/circleci-agent
+  printf '#!/bin/bash\nexit 0\n' > $STUB_DIR/curl
+  printf '#!/bin/bash\nexit 0\n' > $STUB_DIR/sleep
+  chmod +x $STUB_DIR/circleci-agent $STUB_DIR/curl $STUB_DIR/sleep
+  export PATH="$STUB_DIR:$PATH"
+
+  export TESTING_MOCK_RESPONSE=test/api/jobs/newerjobsamename.json
+  export TESTING_MOCK_WORKFLOW_RESPONSES=test/api/workflows
+  export MY_PIPELINE_NUMBER="2"
+  export TRIGGER_SOURCE="1"
+  export VCS_TYPE="github"
+  export MY_BRANCH="main"
+  export CIRCLE_BUILD_NUM="3"
+  export CIRCLE_JOB="singlejob"
+  export CIRCLE_PROJECT_USERNAME="madethisup"
+  export CIRCLE_PROJECT_REPONAME="madethisup"
+  export CIRCLE_REPOSITORY_URL="madethisup"
+  export CIRCLE_BRANCH="main"
+  export CIRCLE_PR_REPONAME=""
+}
+
+@test "Command: superseded job fails by default" {
+  # given
+  process_config_with test/inputs/command-superseded-default.yml
+  load_config_parameters
+  stub_superseded_environment
+
+  # when
+  run bash scripts/loop.bash
+  echo $ouput
+
+  assert_contains_text "We found a newer pipeline as the front of the queue"
+  assert_contains_text "Cancelling build 3"
+  assert_text_not_found "on-superseded is skip"
+  [[ "$status" == "1" ]]
+}
+
+@test "Command: superseded job with on-superseded skip ends successfully and halts the job" {
+  # given
+  process_config_with test/inputs/command-on-superseded-skip.yml
+  assert_jq_match '.jobs["build"].steps[0].run.environment["ON_SUPERSEDED"]' 'skip'
+  load_config_parameters
+  stub_superseded_environment
+
+  # when
+  run bash scripts/loop.bash
+  echo $ouput
+
+  assert_contains_text "We found a newer pipeline as the front of the queue"
+  assert_contains_text "on-superseded is skip"
+  assert_text_not_found "Cancelling build"
+  [[ "$status" == "0" ]]
+  grep -q "circleci-agent step halt" $STUB_DIR/calls
+}
+
 @test "Command: script will skip queueing on forks" {
   # given
   process_config_with test/inputs/command-defaults.yml

@@ -40,6 +40,11 @@ parameters:
     type: string
     default: "circleci.com"
     description: "For server user to specifiy custom hostname for their server"
+  on-superseded:
+    type: enum
+    enum: [fail, skip]
+    default: fail
+    description: "What to do when a newer pipeline is found ahead of this one. fail: cancel this job, which shows as failed. skip: end this job successfully and skip its remaining steps, so a superseded pipeline is not reported as a failure."
 
   vcs-type:
     type: string
@@ -65,3 +70,4 @@ steps:
         CIRCLECI_BASE_URL: https://<<parameters.circleci-hostname>>
         MY_PIPELINE_NUMBER: <<parameters.my-pipeline>>
         VCS_TYPE: <<parameters.vcs-type>>
+        ON_SUPERSEDED: <<parameters.on-superseded>>
